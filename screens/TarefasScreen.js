@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
-    FlatList,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
+
+import { useFocusEffect } from '@react-navigation/native';
+import { supabase } from '../supabase';
 
 export default function TarefasScreen({ route, navigation }) {
   const { nomeUsuario } = route.params;
@@ -14,19 +17,64 @@ export default function TarefasScreen({ route, navigation }) {
   const [tarefa, setTarefa] = useState('');
   const [tarefas, setTarefas] = useState([]);
 
-  function adicionarTarefa() {
-    if (tarefa.trim() === '') {
-      alert('Digite uma tarefa antes de adicionar.');
+  useFocusEffect(
+    useCallback(() => {
+      carregarTarefas();
+    }, [])
+  );
+
+  async function carregarTarefas() {
+    const { data, error } = await supabase
+      .from('tarefas')
+      .select('*')
+      .order('id', { ascending: true });
+
+    if (error) {
+      console.log(error);
       return;
     }
 
-    const novaTarefa = {
-      id: Date.now().toString(),
-      nome: tarefa
-    };
+    setTarefas(data);
+  }
 
-    setTarefas([...tarefas, novaTarefa]);
+  async function adicionarTarefa() {
+    if (!tarefa.trim()) {
+      alert('Digite uma tarefa.');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('tarefas')
+      .insert([
+        {
+          titulo: tarefa,
+          concluida: false
+        }
+      ]);
+
+    if (error) {
+      console.log(error);
+      return;
+    }
+
     setTarefa('');
+    carregarTarefas();
+  }
+
+  async function concluirTarefa(item) {
+    const { error } = await supabase
+      .from('tarefas')
+      .update({
+        concluida: !item.concluida
+      })
+      .eq('id', item.id);
+
+    if (error) {
+      console.log(error);
+      return;
+    }
+
+    carregarTarefas();
   }
 
   return (
@@ -36,7 +84,7 @@ export default function TarefasScreen({ route, navigation }) {
       </Text>
 
       <Text style={styles.subtitulo}>
-        Organize suas tarefas de hoje.
+        Organize suas tarefas.
       </Text>
 
       <TextInput
@@ -51,25 +99,32 @@ export default function TarefasScreen({ route, navigation }) {
         onPress={adicionarTarefa}
       >
         <Text style={styles.textoBotao}>
-          Adicionar Tarefa
+          Adicionar
         </Text>
       </TouchableOpacity>
 
       <FlatList
         data={tarefas}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
+        keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={styles.item}
+            style={[
+              styles.item,
+              item.concluida && styles.itemConcluido
+            ]}
             onPress={() =>
               navigation.navigate('Detalhes', {
-                tarefa: item.nome
+                tarefa: item
               })
             }
           >
-            <Text style={styles.textoItem}>
-              {item.nome}
+            <Text
+              style={[
+                styles.textoItem,
+                item.concluida && styles.textoConcluido
+              ]}
+            >
+              {item.titulo}
             </Text>
           </TouchableOpacity>
         )}
@@ -93,8 +148,7 @@ const styles = StyleSheet.create({
 
   subtitulo: {
     fontSize: 16,
-    marginBottom: 20,
-    color: '#555'
+    marginBottom: 20
   },
 
   input: {
@@ -102,32 +156,39 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 10,
-    padding: 15,
-    marginBottom: 15
+    padding: 15
   },
 
   botao: {
     backgroundColor: '#28a745',
     padding: 15,
     borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 20
+    marginVertical: 15,
+    alignItems: 'center'
   },
 
   textoBotao: {
     color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16
+    fontWeight: 'bold'
   },
 
   item: {
     backgroundColor: '#fff',
     padding: 18,
     borderRadius: 10,
-    marginBottom: 12
+    marginBottom: 10
+  },
+
+  itemConcluido: {
+    backgroundColor: '#d4edda'
   },
 
   textoItem: {
     fontSize: 16
+  },
+
+  textoConcluido: {
+    textDecorationLine: 'line-through',
+    color: '#777'
   }
 });

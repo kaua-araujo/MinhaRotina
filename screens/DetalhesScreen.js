@@ -1,37 +1,88 @@
+import { useState } from 'react';
 import {
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
+import { supabase } from '../supabase';
+
 export default function DetalhesScreen({ route, navigation }) {
-  const { tarefa } = route.params;
+  const [tarefa, setTarefa] = useState(route.params.tarefa);
+
+  async function alterarStatus() {
+    const novoStatus = !tarefa.concluida;
+
+    const { error } = await supabase
+      .from('tarefas')
+      .update({
+        concluida: novoStatus
+      })
+      .eq('id', tarefa.id);
+
+    if (error) {
+      console.log(error);
+      alert('Erro ao atualizar.');
+      return;
+    }
+
+    setTarefa({
+      ...tarefa,
+      concluida: novoStatus
+    });
+  }
 
   return (
     <View style={styles.container}>
+
       <Text style={styles.titulo}>
         Detalhes da Tarefa
       </Text>
 
-      <View style={styles.card}>
-        <Text style={styles.nomeTarefa}>
-          {tarefa}
-        </Text>
+      <Text style={styles.label}>
+        Nome:
+      </Text>
 
-        <Text style={styles.descricao}>
-          Essa atividade faz parte da sua rotina diária.
-        </Text>
-      </View>
+      <Text style={styles.valor}>
+        {tarefa.titulo}
+      </Text>
+
+      <Text style={styles.label}>
+        Status:
+      </Text>
+
+      <Text
+        style={[
+          styles.status,
+          tarefa.concluida
+            ? styles.concluida
+            : styles.pendente
+        ]}
+      >
+        {tarefa.concluida ? 'Concluída' : 'Pendente'}
+      </Text>
 
       <TouchableOpacity
         style={styles.botao}
+        onPress={alterarStatus}
+      >
+        <Text style={styles.textoBotao}>
+          {tarefa.concluida
+            ? 'Marcar como Pendente'
+            : 'Marcar como Concluída'}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.botaoVoltar}
         onPress={() => navigation.goBack()}
       >
         <Text style={styles.textoBotao}>
           Voltar
         </Text>
       </TouchableOpacity>
+
     </View>
   );
 }
@@ -39,48 +90,62 @@ export default function DetalhesScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    padding: 25,
     justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
     backgroundColor: '#f2f2f2'
   },
 
   titulo: {
     fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 20
+    marginBottom: 30,
+    textAlign: 'center'
   },
 
-  card: {
-    
-    width: '100%',
-    backgroundColor: '#fff',
-    padding: 25,
-    borderRadius: 12,
-    marginBottom: 30
-  },
-
-  nomeTarefa: {
-    fontSize: 22,
+  label: {
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 10
+    marginTop: 15
   },
 
-  descricao: {
-    fontSize: 16,
-    color: '#555'
+  valor: {
+    fontSize: 18,
+    marginTop: 5
+  },
+
+  status: {
+    fontSize: 20,
+    marginTop: 8,
+    fontWeight: 'bold'
+  },
+
+  concluida: {
+    color: 'green'
+  },
+
+  pendente: {
+    color: 'red'
   },
 
   botao: {
+    backgroundColor: '#28a745',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 40
+  },
+
+  botaoVoltar: {
     backgroundColor: '#007bff',
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    borderRadius: 10
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 15
   },
 
   textoBotao: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    fontSize: 16
   }
 });
